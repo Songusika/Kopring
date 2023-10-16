@@ -53,11 +53,11 @@ tasks.withType<Test> {
     useJUnitPlatform()
 }
 
-val projectPackageName = "com.example.demo"
+val openApiPackageName = "openapi"
 
-val customApiPackage = "$projectPackageName.api"
-val customInvokerPackage = "$projectPackageName.invoker"
-val customModelPackage = "$projectPackageName.model"
+val customApiPackage = "$openApiPackageName.api"
+val customInvokerPackage = "$openApiPackageName.invoker"
+val customModelPackage = "$openApiPackageName.model"
 
 val contractDir = "$rootDir/contract"
 val openApiGenerateDir = "$buildDir/openapi"
@@ -66,8 +66,6 @@ val contractFileNames = listOf("campus-platform-contract.yaml", "zzimkkong-contr
 
 val generateOpenApiTasks = contractFileNames.map { fileName ->
     createOpenApiGenerateTask(fileName)
-//    createOpenApiValidateTask(fileName)
-//    createOpenApiMetaTask(fileName)
 }
 
 // OpenAPI CodeGen 코드 생성
@@ -164,6 +162,8 @@ fun createOpenApiGenerateTask(fileName: String): TaskProvider<GenerateTask> {
     }
 }
 
+// OpenAPI CodeGen 코드 검증
+// 사용 시 Task 등록 필요
 fun createOpenApiValidateTask(fileName: String): TaskProvider<ValidateTask> {
     val taskName = "openApiValidate_$fileName"
 
@@ -173,12 +173,14 @@ fun createOpenApiValidateTask(fileName: String): TaskProvider<ValidateTask> {
     }
 }
 
+// OpenAPI CodeGen 메타 정보 생성
+// 사용 시 Task 등록 필요
 fun createOpenApiMetaTask(fileName: String): TaskProvider<MetaTask> {
     val taskName = "openApiMeta_$fileName"
 
     return tasks.register(taskName, MetaTask::class) {
         generatorName.set("meta")
-        packageName.set(projectPackageName)
+        packageName.set(openApiPackageName)
         outputFolder.set("$buildDir/meta")
     }
 }
