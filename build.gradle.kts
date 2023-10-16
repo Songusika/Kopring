@@ -59,14 +59,14 @@ val customApiPackage = "$openApiPackageName.api"
 val customInvokerPackage = "$openApiPackageName.invoker"
 val customModelPackage = "$openApiPackageName.model"
 
-val contractDir = "$rootDir/contract"
+val contractDir = "$rootDir/../docs/contract"
 val openApiGenerateDir = "$buildDir/openapi"
 
-val contractFileNames = listOf("campus-platform-contract.yaml", "zzimkkong-contract.yaml")
+val contractFileNames = fileTree(contractDir)
+    .filter { it.extension == "yaml" }
+    .map { it.name }
 
-val generateOpenApiTasks = contractFileNames.map { fileName ->
-    createOpenApiGenerateTask(fileName)
-}
+val generateOpenApiTasks = contractFileNames.map { createOpenApiGenerateTask(it) }
 
 // OpenAPI CodeGen 코드 생성
 tasks.register("createOpenApi") {
