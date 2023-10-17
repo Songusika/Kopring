@@ -45,7 +45,6 @@ ktlint {
     }
     filter {
         verbose.set(true)
-        disabledRules.addAll("import-ordering")
     }
 }
 
@@ -89,7 +88,7 @@ tasks.register("moveGeneratedSources") {
             .map { it.replace(".", "/") }
             .forEach { packagePath ->
                 val originDir = file("$openApiGenerateDir/src/main/kotlin/$packagePath")
-                val destinationDir = file("src/main/generated/$packagePath")
+                val destinationDir = file("$buildDir/generated/$packagePath")
                 originDir.listFiles { file -> file.extension == "kt" }?.forEach { file ->
                     val resolvedFile = destinationDir.resolve(file.name)
                     if (!resolvedFile.exists() && file.name != "Application.kt") {
@@ -124,13 +123,6 @@ sourceSets {
     }
 }
 
-// clean 시 generated 디렉터리 삭제
-tasks.named("clean") {
-    val generatedDir = file("src/main/generated")
-    generatedDir.deleteRecursively()
-    println("Generated directory cleaned.")
-}
-
 tasks.withType<KotlinCompile> {
     kotlinOptions {
         freeCompilerArgs += "-Xjsr305=strict"
@@ -154,8 +146,8 @@ fun createOpenApiGenerateTask(fileName: String): TaskProvider<GenerateTask> {
                 "dateLibrary" to "kotlin-spring",
                 "useSpringBoot3" to "true",
                 "useTags" to "true",
-                "interfaceOnly" to "true"
-            )
+                "interfaceOnly" to "true",
+            ),
         )
         // 템플릿 디렉터리 설정
         templateDir.set("$contractDir/template")
