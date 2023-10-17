@@ -1,7 +1,5 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.openapitools.generator.gradle.plugin.tasks.GenerateTask
-import org.openapitools.generator.gradle.plugin.tasks.MetaTask
-import org.openapitools.generator.gradle.plugin.tasks.ValidateTask
 
 plugins {
     id("org.springframework.boot") version "3.1.4"
@@ -14,14 +12,9 @@ plugins {
 }
 
 group = "com.woowahan"
+java.sourceCompatibility = JavaVersion.VERSION_17
 
-java {
-    sourceCompatibility = JavaVersion.VERSION_17
-}
-
-repositories {
-    mavenCentral()
-}
+repositories.mavenCentral()
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
@@ -52,22 +45,22 @@ tasks.withType<Test> {
     useJUnitPlatform()
 }
 
-val openApiPackageName = "openapi"
+val openApiPackages = Pair(
+    "openapi",
+    listOf("openapi.api", "openapi.invoker", "openapi.model"),
+)
 
-val customApiPackage = "$openApiPackageName.api"
-val customInvokerPackage = "$openApiPackageName.invoker"
-val customModelPackage = "$openApiPackageName.model"
+val dirs = mapOf(
+    "contract" to "$rootDir/../docs/contract",
+    "openApiGenerate" to "$buildDir/openapi",
+)
 
-val contractDir = "$rootDir/../docs/contract"
-val openApiGenerateDir = "$buildDir/openapi"
-
-val contractFileNames = fileTree(contractDir)
+val contractFileNames = fileTree(dirs["contract"]!!)
     .filter { it.extension == "yaml" }
     .map { it.name }
 
 val generateOpenApiTasks = contractFileNames.map { createOpenApiGenerateTask(it) }
 
-// OpenAPI CodeGen 코드 생성
 tasks.register("createOpenApi") {
     doFirst {
         println("Creating Code By OpenAPI...")
@@ -78,16 +71,15 @@ tasks.register("createOpenApi") {
     dependsOn(generateOpenApiTasks)
 }
 
-// 빌드된 API 파일 이동
 tasks.register("moveGeneratedSources") {
     doFirst {
         println("Moving generated sources...")
     }
     doLast {
-        listOf(customApiPackage, customModelPackage, customInvokerPackage)
+        openApiPackages.second
             .map { it.replace(".", "/") }
             .forEach { packagePath ->
-                val originDir = file("$openApiGenerateDir/src/main/kotlin/$packagePath")
+                val originDir = file("${dirs["openApiGenerate"]}/src/main/kotlin/$packagePath")
                 val destinationDir = file("$buildDir/generated/$packagePath")
                 originDir.listFiles { file -> file.extension == "kt" }?.forEach { file ->
                     val resolvedFile = destinationDir.resolve(file.name)
@@ -98,81 +90,48 @@ tasks.register("moveGeneratedSources") {
             }
         println("Generated sources moved.")
     }
-    dependsOn(tasks.getByName("createOpenApi"))
+    dependsOn("createOpenApi")
 }
 
-// 생성된 OpenAPI 디렉터리 삭제
 tasks.register("cleanGeneratedDirectory") {
     doFirst {
         println("Cleaning generated directory...")
     }
     doLast {
-        val generatedDir = file(openApiGenerateDir)
-        generatedDir.deleteRecursively()
+        file(dirs["openApiGenerate"]!!).deleteRecursively()
         println("Generated directory cleaned.")
     }
-    dependsOn(tasks.getByName("moveGeneratedSources"))
+    dependsOn("moveGeneratedSources")
 }
 
-// 생성된 OpenAPI 코드에 대한 참조 경로 설정
 sourceSets {
     main {
-        kotlin {
-            srcDirs("src/main/generated")
-        }
+        kotlin.srcDir("$buildDir/generated")
     }
 }
 
-tasks.withType<KotlinCompile> {
+tasks.withType<KotlinCompile>().configureEach {
     kotlinOptions {
         freeCompilerArgs += "-Xjsr305=strict"
         jvmTarget = "17"
     }
-    dependsOn(tasks.getByName("cleanGeneratedDirectory"))
+    dependsOn("cleanGeneratedDirectory")
 }
 
-fun createOpenApiGenerateTask(fileName: String): TaskProvider<GenerateTask> {
-    val taskName = "openApiGenerate_$fileName"
-
-    return tasks.register(taskName, GenerateTask::class) {
-        generatorName.set("kotlin-spring")
-        inputSpec.set("$contractDir/$fileName")
-        outputDir.set(openApiGenerateDir)
-        apiPackage.set(customApiPackage)
-        invokerPackage.set(customInvokerPackage)
-        modelPackage.set(customModelPackage)
-        configOptions.set(
-            mapOf(
-                "dateLibrary" to "kotlin-spring",
-                "useSpringBoot3" to "true",
-                "useTags" to "true",
-                "interfaceOnly" to "true",
-            ),
-        )
-        // 템플릿 디렉터리 설정
-        templateDir.set("$contractDir/template")
-    }
-}
-
-// OpenAPI CodeGen 코드 검증
-// 사용 시 Task 등록 필요
-fun createOpenApiValidateTask(fileName: String): TaskProvider<ValidateTask> {
-    val taskName = "openApiValidate_$fileName"
-
-    return tasks.register(taskName, ValidateTask::class) {
-        inputSpec.set("$contractDir/$fileName")
-        recommend.set(true)
-    }
-}
-
-// OpenAPI CodeGen 메타 정보 생성
-// 사용 시 Task 등록 필요
-fun createOpenApiMetaTask(fileName: String): TaskProvider<MetaTask> {
-    val taskName = "openApiMeta_$fileName"
-
-    return tasks.register(taskName, MetaTask::class) {
-        generatorName.set("meta")
-        packageName.set(openApiPackageName)
-        outputFolder.set("$buildDir/meta")
-    }
+fun createOpenApiGenerateTask(fileName: String) = tasks.register<GenerateTask>("openApiGenerate_$fileName") {
+    generatorName.set("kotlin-spring")
+    inputSpec.set("${dirs["contract"]}/$fileName")
+    outputDir.set(dirs["openApiGenerate"])
+    apiPackage.set(openApiPackages.second[0])
+    invokerPackage.set(openApiPackages.second[1])
+    modelPackage.set(openApiPackages.second[2])
+    configOptions.set(
+        mapOf(
+            "dateLibrary" to "kotlin-spring",
+            "useSpringBoot3" to "true",
+            "useTags" to "true",
+            "interfaceOnly" to "true",
+        ),
+    )
+    templateDir.set("${dirs["contract"]}/template")
 }
