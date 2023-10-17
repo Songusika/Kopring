@@ -2,7 +2,6 @@ package com.woowahan.campus
 
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
-import java.util.*
 
 @SpringBootApplication
 class CampusApplication
