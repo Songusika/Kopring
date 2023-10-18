@@ -17,7 +17,7 @@ java.sourceCompatibility = JavaVersion.VERSION_17
 repositories.mavenCentral()
 
 dependencies {
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
@@ -50,12 +50,14 @@ val openApiPackages = Pair(
     listOf("openapi.api", "openapi.invoker", "openapi.model"),
 )
 
+val openApiGeneratedDir = "openApiGenerate"
+val contractDir = "contract"
 val dirs = mapOf(
-    "contract" to "$rootDir/../docs/contract",
-    "openApiGenerate" to "$buildDir/openapi",
+    contractDir to "$rootDir/../docs/contract",
+    openApiGeneratedDir to "$buildDir/openapi",
 )
 
-val contractFileNames = fileTree(dirs["contract"]!!)
+val contractFileNames = fileTree(dirs[contractDir]!!)
     .filter { it.extension == "yaml" }
     .map { it.name }
 
@@ -79,7 +81,7 @@ tasks.register("moveGeneratedSources") {
         openApiPackages.second
             .map { it.replace(".", "/") }
             .forEach { packagePath ->
-                val originDir = file("${dirs["openApiGenerate"]}/src/main/kotlin/$packagePath")
+                val originDir = file("${dirs[openApiGeneratedDir]}/src/main/kotlin/$packagePath")
                 val destinationDir = file("$buildDir/generated/$packagePath")
                 originDir.listFiles { file -> file.extension == "kt" }?.forEach { file ->
                     val resolvedFile = destinationDir.resolve(file.name)
@@ -98,7 +100,7 @@ tasks.register("cleanGeneratedDirectory") {
         println("Cleaning generated directory...")
     }
     doLast {
-        file(dirs["openApiGenerate"]!!).deleteRecursively()
+        file(dirs[openApiGeneratedDir]!!).deleteRecursively()
         println("Generated directory cleaned.")
     }
     dependsOn("moveGeneratedSources")
@@ -120,8 +122,8 @@ tasks.withType<KotlinCompile>().configureEach {
 
 fun createOpenApiGenerateTask(fileName: String) = tasks.register<GenerateTask>("openApiGenerate_$fileName") {
     generatorName.set("kotlin-spring")
-    inputSpec.set("${dirs["contract"]}/$fileName")
-    outputDir.set(dirs["openApiGenerate"])
+    inputSpec.set("${dirs[contractDir]}/$fileName")
+    outputDir.set(dirs[openApiGeneratedDir])
     apiPackage.set(openApiPackages.second[0])
     invokerPackage.set(openApiPackages.second[1])
     modelPackage.set(openApiPackages.second[2])
@@ -133,5 +135,5 @@ fun createOpenApiGenerateTask(fileName: String) = tasks.register<GenerateTask>("
             "interfaceOnly" to "true",
         ),
     )
-    templateDir.set("${dirs["contract"]}/template")
+    templateDir.set("${dirs[contractDir]}/template")
 }

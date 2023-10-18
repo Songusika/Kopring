@@ -1,13 +1,12 @@
 package com.woowahan.campus
 
-import io.kotest.core.spec.style.BehaviorSpec
+import io.kotest.core.spec.style.Test
+import org.springframework.boot.test.context.SpringBootTest
 
-class CampusApplicationTests : BehaviorSpec({
+@SpringBootTest
+class CampusApplicationTests {
 
-    Given("에밀이 주어 지고") {
-        When("노트북 앞에 앉으면") {
-            Then("북 소리가 난다") {
-            }
-        }
+    @Test
+    fun contextLoad() {
     }
-})
+}
