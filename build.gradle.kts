@@ -4,7 +4,7 @@ plugins {
     id("org.springframework.boot") version "3.1.4"
     id("io.spring.dependency-management") version "1.1.3"
     id("org.openapi.generator") version "6.6.0"
-    id("org.jlleitschuh.gradle.ktlint") version "10.3.0"
+    id("org.jlleitschuh.gradle.ktlint") version "10.2.1"
     kotlin("jvm") version "1.8.22"
     kotlin("plugin.spring") version "1.8.22"
     kotlin("plugin.jpa") version "1.8.22"
@@ -46,107 +46,6 @@ tasks.withType<KotlinCompile> {
 
 tasks.withType<Test> {
     useJUnitPlatform()
-}
-
-val projectPackageName = "com.woowahan.campus"
-val projectPackagePath = "com/woowahan/campus"
-val contractDir = "$rootDir/../docs/contract"
-val contractFileName = "campus-platform-contract.yaml"
-
-openApiGenerate {
-    generatorName.set("kotlin-spring")
-    inputSpec.set("$contractDir/$contractFileName")
-    outputDir.set("$buildDir/openapi")
-    apiPackage.set("$projectPackageName.api")
-    invokerPackage.set("$projectPackageName.invoker")
-    modelPackage.set("$projectPackageName.model")
-    configOptions.set(
-        mapOf(
-            "dateLibrary" to "kotlin-spring",
-            "useSpringBoot3" to "true",
-            "useTags" to "true",
-            "interfaceOnly" to "true",
-        ),
-    )
-    // 템플릿 디렉터리 설정
-    templateDir.set("$contractDir/template")
-}
-
-openApiValidate {
-    val contractPath = "$contractDir/$contractFileName"
-    inputSpec.set(contractPath)
-    recommend.set(true)
-}
-
-openApiMeta {
-    generatorName.set("meta")
-    packageName.set(projectPackageName)
-}
-
-// 빌드된 API 파일 이동
-tasks.register("moveGeneratedSources") {
-    doFirst {
-        println("Moving generated sources...")
-    }
-    doLast {
-        listOf("api", "model", "invoker").forEach { packageName ->
-            val originDir = file("$buildDir/openapi/src/main/kotlin/$projectPackagePath/$packageName")
-            val destinationDir = file("src/main/generated/$projectPackagePath/$packageName")
-            originDir.listFiles { file -> file.extension == "kt" }?.forEach { file ->
-                val resolvedFile = destinationDir.resolve(file.name)
-                if (!resolvedFile.exists() && file.name != "Application.kt") {
-                    file.copyTo(destinationDir.resolve(file.name), true)
-                }
-            }
-        }
-        println("Generated sources moved.")
-    }
-    dependsOn("openApiGenerate")
-}
-
-tasks.register("cleanGeneratedDirectory") {
-    doFirst {
-        println("Cleaning generated directory...")
-    }
-    doLast {
-        // $buildDir/generated 디렉터리 삭제
-        val generatedDir = file("$buildDir/openapi")
-        generatedDir.deleteRecursively()
-        println("Generated directory cleaned.")
-    }
-    dependsOn(tasks.getByName("moveGeneratedSources"))
-}
-
-tasks.register("updateOpenApiSpec") {
-    doFirst {
-        println("Updating OpenAPI spec...")
-    }
-    doLast {
-        println("OpenAPI spec updated.")
-    }
-    dependsOn(
-        tasks.getByName("openApiGenerate"),
-        tasks.getByName("moveGeneratedSources"),
-        tasks.getByName("cleanGeneratedDirectory"),
-    )
-}
-
-sourceSets {
-    main {
-        kotlin {
-            srcDirs("src/main/generated")
-        }
-    }
-}
-
-tasks.named("clean") {
-    val generatedDir = file("src/main/generated")
-    generatedDir.deleteRecursively()
-    println("Generated directory cleaned.")
-}
-
-tasks.named("compileKotlin") {
-    dependsOn("updateOpenApiSpec")
 }
 
 ktlint {
